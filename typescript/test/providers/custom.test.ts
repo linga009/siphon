@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
+import { encodeMedia } from "../../src/api.js";
 import { GenericHTTPUploadProvider, multipartChunks } from "../../src/providers/custom.js";
+import { registerProvider } from "../../src/providers/types.js";
 
 async function* toAsyncIterable(chunks: Buffer[]): AsyncIterable<Buffer> {
   for (const chunk of chunks) yield chunk;
@@ -30,6 +32,34 @@ describe("multipartChunks", () => {
     expect(body.toString("latin1")).toContain("Content-Type: image/png");
     expect(body.toString("latin1")).toContain("ABCD");
     expect(body.toString("latin1")).toMatch(/--TESTBOUNDARY--\r\n$/);
+  });
+
+  it("rejects a fieldName containing a newline", async () => {
+    await expect(
+      collect(
+        multipartChunks(
+          "file\nX-Injected: evil",
+          "photo.png",
+          "image/png",
+          toAsyncIterable([Buffer.from("AB")]),
+          "TESTBOUNDARY"
+        )
+      )
+    ).rejects.toThrow(/CR or LF/);
+  });
+
+  it("rejects a mimeType containing a newline", async () => {
+    await expect(
+      collect(
+        multipartChunks(
+          "file",
+          "photo.png",
+          "image/png\r\nX-Injected: evil",
+          toAsyncIterable([Buffer.from("AB")]),
+          "TESTBOUNDARY"
+        )
+      )
+    ).rejects.toThrow(/CR or LF/);
   });
 });
 
@@ -71,12 +101,20 @@ describe("GenericHTTPUploadProvider", () => {
     }
     const bodyBytes = Buffer.concat(received).toString("latin1");
 
+    // The boundary is randomly generated per upload() call (to prevent an
+    // attacker-controlled file from injecting multipart form fields via a
+    // hardcoded boundary), so extract it from the body rather than asserting
+    // a literal value.
+    const boundaryMatch = bodyBytes.match(/^--(SiphonBoundary[0-9a-f]{32})\r\n/);
+    expect(boundaryMatch).not.toBeNull();
+    const boundary = boundaryMatch![1];
+
     expect(bodyBytes).toBe(
-      `--SiphonBoundary7f3a9c\r\n` +
+      `--${boundary}\r\n` +
         `Content-Disposition: form-data; name="file"; filename="upload"\r\n` +
         `Content-Type: image/png\r\n\r\n` +
         `ABCD` +
-        `\r\n--SiphonBoundary7f3a9c--\r\n`
+        `\r\n--${boundary}--\r\n`
     );
 
     vi.unstubAllGlobals();
@@ -93,5 +131,32 @@ describe("GenericHTTPUploadProvider", () => {
       mime_type: "image/png",
       data: "AAAA",
     });
+  });
+
+  // README "Custom providers" example, end-to-end through the real encodeMedia/
+  // registerProvider path: registerProvider("my-server", new GenericHTTPUploadProvider(...)),
+  // then encodeMedia(null, "my-server", <small source>). This is a regression check for the
+  // inlineSizeLimit() === 0 sentinel bug: previously this threw for any non-empty source
+  // routed to GenericHTTPUploadProvider on the inline path.
+  it("inlines a small source through the real encodeMedia path (README custom-providers flow)", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    registerProvider("readme-custom-server", new GenericHTTPUploadProvider("https://my-server/upload"));
+
+    const block = await encodeMedia(null, "readme-custom-server", Buffer.from("tiny clip bytes"), {
+      mimeType: "video/mp4",
+    });
+
+    expect(block).toEqual({
+      type: "inline_base64",
+      mime_type: "video/mp4",
+      data: Buffer.from("tiny clip bytes").toString("base64"),
+    });
+    // Small enough to stay under the default size threshold, so it inlines without
+    // ever hitting the network.
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    vi.unstubAllGlobals();
   });
 });

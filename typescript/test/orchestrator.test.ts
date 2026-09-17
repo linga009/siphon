@@ -99,8 +99,25 @@ describe("encodeMediaCore", () => {
 
     // sizeThreshold is larger than the content, so this is forced onto the inline path.
     await expect(encodeMediaCore(provider, "fake", source, cache, 1000)).rejects.toThrow(
-      /inline size limit/
+      /inlineSizeLimit/
     );
+    expect(provider.uploadCalls).toBe(0);
+  });
+
+  it("treats inlineSizeLimit() === 0 as 'no limit' and still inlines successfully", async () => {
+    // 0 is the documented sentinel for "no declared inline size limit" (e.g.
+    // GenericHTTPUploadProvider for an arbitrary custom endpoint). It must NOT be
+    // treated as "zero bytes allowed" -- small sources should still inline
+    // successfully without raising.
+    const provider = new RecordingProvider(true, false, 0);
+    const cache = new UploadCache();
+    // Below sizeThreshold, so it's forced onto the inline path. Previously this
+    // threw because 0 was compared literally instead of being treated as "no limit".
+    const source = fromBuffer(Buffer.from("tiny"), "image/png");
+
+    const block = await encodeMediaCore(provider, "fake", source, cache, 1000);
+
+    expect(block.type).toBe("inline");
     expect(provider.uploadCalls).toBe(0);
   });
 

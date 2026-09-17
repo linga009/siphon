@@ -35,11 +35,16 @@ export async function encodeMediaCore(
     const sizeTriggered = source.size !== null && source.size < sizeThreshold;
     const shouldGoInline = !supportsType || sizeTriggered;
     if (shouldGoInline) {
-      if (supportsType && sizeTriggered && source.size! > provider.inlineSizeLimit()) {
-        throw new Error(
-          `Cannot inline-encode ${source.size} bytes for provider "${providerName}": ` +
-            `exceeds its inline size limit of ${provider.inlineSizeLimit()} bytes.`
-        );
+      if (supportsType && sizeTriggered) {
+        const limit = provider.inlineSizeLimit();
+        if (limit > 0 && source.size! > limit) {
+          throw new Error(
+            `Source size (${source.size} bytes) exceeds "${providerName}"'s inlineSizeLimit ` +
+              `(${limit} bytes), but it is below sizeThreshold (${sizeThreshold} bytes) so ` +
+              `native upload was not attempted. Lower sizeThreshold to at or below the ` +
+              `provider's inlineSizeLimit so oversized sources use native upload instead.`
+          );
+        }
       }
       return inlineBlock(provider, source.chunks(), source.mimeType);
     }
