@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from siphon.cache import UploadCache
@@ -13,19 +14,33 @@ from siphon.orchestrator import (
 from siphon.providers import Provider, get_provider, register_provider
 from siphon.sources import MediaSource, from_bytes, from_iterator, from_path
 
+logger = logging.getLogger("siphon")
+
 _DEFAULT_CACHE = UploadCache()
-_BUILTIN_CLIENT_MODULE_PREFIXES = {
-    "openai": "openai",
-    "anthropic": "anthropic",
-    "gemini": "google.genai",
-}
+_BUILTIN_PROVIDER_NAMES = frozenset({"openai", "anthropic", "gemini"})
+
+# Tracks which client instance was used to auto-register each built-in provider
+# name, so a later call with a *different* client for the same name can be flagged
+# instead of silently continuing to use the original client.
+_AUTO_REGISTERED_CLIENTS: dict[str, object] = {}
 
 
 def _ensure_builtin_provider_registered(provider_name: str, client) -> None:
-    if provider_name not in _BUILTIN_CLIENT_MODULE_PREFIXES:
+    if provider_name not in _BUILTIN_PROVIDER_NAMES:
         return
     try:
         get_provider(provider_name)
+        registered_client = _AUTO_REGISTERED_CLIENTS.get(provider_name)
+        if registered_client is not None and client is not registered_client:
+            logger.warning(
+                "siphon: encode_media() was called with a different client instance "
+                "for already-registered provider %r. The client passed on first use "
+                "is still the one in effect; this call's client was ignored. If you "
+                "intended to switch clients (e.g. a different API key or org), call "
+                "siphon.register_provider(%r, ...) explicitly with a new adapter.",
+                provider_name,
+                provider_name,
+            )
         return  # already registered (built-in or user override)
     except KeyError:
         pass
@@ -42,6 +57,7 @@ def _ensure_builtin_provider_registered(provider_name: str, client) -> None:
         from siphon.providers.gemini_provider import GeminiProvider
 
         register_provider("gemini", GeminiProvider(client))
+    _AUTO_REGISTERED_CLIENTS[provider_name] = client
 
 
 def _resolve_source(

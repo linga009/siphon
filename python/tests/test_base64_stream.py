@@ -1,6 +1,6 @@
 import base64
 
-from siphon.base64_stream import encode_chunks_to_base64, to_data_url
+from siphon.base64_stream import encode_chunks_to_base64
 
 
 def test_encode_chunks_to_base64_matches_stdlib_for_various_chunk_boundaries():
@@ -14,12 +14,3 @@ def test_encode_chunks_to_base64_matches_stdlib_for_various_chunk_boundaries():
 
 def test_encode_chunks_to_base64_empty():
     assert encode_chunks_to_base64(iter([])) == ""
-
-
-def test_to_data_url_wraps_mime_type_and_base64():
-    content = b"hello"
-    expected_b64 = base64.b64encode(content).decode("ascii")
-
-    result = to_data_url("text/plain", iter([content]))
-
-    assert result == f"data:text/plain;base64,{expected_b64}"

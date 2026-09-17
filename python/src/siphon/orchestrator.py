@@ -37,10 +37,18 @@ def encode_media_sync(
         if cached is not None:
             return provider.build_reference_block(cached, source.mime_type)
 
-        should_go_inline = not supports_type or (
-            source.size is not None and source.size < size_threshold
-        )
-        if should_go_inline:
+        if not supports_type:
+            return _inline_block(provider, source.chunks(), source.mime_type)
+
+        if source.size is not None and source.size < size_threshold:
+            if source.size > provider.inline_size_limit():
+                raise ValueError(
+                    f"Source size ({source.size} bytes) exceeds {provider_name!r}'s "
+                    f"inline_size_limit ({provider.inline_size_limit()} bytes), but it is "
+                    f"below size_threshold ({size_threshold} bytes) so native upload was "
+                    "not attempted. Lower size_threshold to at or below the provider's "
+                    "inline_size_limit so oversized sources use native upload instead."
+                )
             return _inline_block(provider, source.chunks(), source.mime_type)
 
         try:
@@ -97,10 +105,18 @@ async def encode_media_async(
         if cached is not None:
             return provider.build_reference_block(cached, source.mime_type)
 
-        should_go_inline = not supports_type or (
-            source.size is not None and source.size < size_threshold
-        )
-        if should_go_inline:
+        if not supports_type:
+            return _inline_block(provider, source.chunks(), source.mime_type)
+
+        if source.size is not None and source.size < size_threshold:
+            if source.size > provider.inline_size_limit():
+                raise ValueError(
+                    f"Source size ({source.size} bytes) exceeds {provider_name!r}'s "
+                    f"inline_size_limit ({provider.inline_size_limit()} bytes), but it is "
+                    f"below size_threshold ({size_threshold} bytes) so native upload was "
+                    "not attempted. Lower size_threshold to at or below the provider's "
+                    "inline_size_limit so oversized sources use native upload instead."
+                )
             return _inline_block(provider, source.chunks(), source.mime_type)
 
         try:

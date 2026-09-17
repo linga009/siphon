@@ -21,7 +21,3 @@ def encode_chunks_to_base64(chunks: Iterator[bytes]) -> str:
         parts.append(base64.b64encode(remainder).decode("ascii"))
 
     return "".join(parts)
-
-
-def to_data_url(mime_type: str, chunks: Iterator[bytes]) -> str:
-    return f"data:{mime_type};base64,{encode_chunks_to_base64(chunks)}"

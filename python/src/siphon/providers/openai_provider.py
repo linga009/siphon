@@ -10,17 +10,6 @@ _SUPPORTED_PREFIXES = ("image/", "application/pdf", "text/")
 _INLINE_SIZE_LIMIT = 20 * 1024 * 1024  # OpenAI's documented data-URL image limit
 
 
-class _ChunkFile:
-    """Wraps a byte-chunk iterator so it looks enough like a file for the SDK."""
-
-    def __init__(self, chunks: Iterator[bytes], name: str) -> None:
-        self._chunks = chunks
-        self.name = name
-
-    def read(self, *_args) -> bytes:
-        return b"".join(self._chunks)
-
-
 class OpenAIProvider:
     def __init__(self, client) -> None:
         self._client = client
@@ -32,8 +21,9 @@ class OpenAIProvider:
         return _INLINE_SIZE_LIMIT
 
     def upload(self, chunks: Iterator[bytes], mime_type: str) -> ProviderRef:
+        data = b"".join(chunks)
         file_obj = self._client.files.create(
-            file=_ChunkFile(chunks, name="upload"),
+            file=("upload", data, mime_type),
             purpose="user_data",
         )
         return ProviderRef(id=file_obj.id, expires_at=None)
@@ -42,11 +32,11 @@ class OpenAIProvider:
         self, chunks: AsyncIterator[bytes] | Iterator[bytes], mime_type: str
     ) -> ProviderRef:
         if hasattr(chunks, "__anext__"):
-            collected = [c async for c in chunks]  # type: ignore[union-attr]
+            data = b"".join([c async for c in chunks])  # type: ignore[union-attr]
         else:
-            collected = list(chunks)  # type: ignore[arg-type]
+            data = b"".join(chunks)  # type: ignore[arg-type]
         file_obj = await self._client.files.create(
-            file=_ChunkFile(iter(collected), name="upload"),
+            file=("upload", data, mime_type),
             purpose="user_data",
         )
         return ProviderRef(id=file_obj.id, expires_at=None)

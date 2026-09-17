@@ -22,6 +22,32 @@ def test_multipart_chunks_produces_well_formed_body():
     assert body.endswith(b"--TESTBOUNDARY--\r\n")
 
 
+def test_multipart_chunks_rejects_field_name_with_crlf():
+    with pytest.raises(ValueError, match="field_name"):
+        list(
+            multipart_chunks(
+                field_name="file\r\nX-Injected: evil",
+                filename="photo.png",
+                mime_type="image/png",
+                chunks=iter([b"AB"]),
+                boundary="TESTBOUNDARY",
+            )
+        )
+
+
+def test_multipart_chunks_rejects_mime_type_with_newline():
+    with pytest.raises(ValueError, match="mime_type"):
+        list(
+            multipart_chunks(
+                field_name="file",
+                filename="photo.png",
+                mime_type="image/png\nX-Injected: evil",
+                chunks=iter([b"AB"]),
+                boundary="TESTBOUNDARY",
+            )
+        )
+
+
 def test_generic_http_upload_provider_posts_and_parses_id():
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.method == "POST"

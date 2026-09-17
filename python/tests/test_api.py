@@ -1,10 +1,11 @@
+import logging
 from unittest.mock import MagicMock
 
 import pytest
 
 import siphon
 from siphon import encode_media
-from siphon.providers import ProviderRef
+from siphon.providers import ProviderRef, get_provider
 
 
 def test_encode_media_accepts_raw_bytes_source_and_inline_encodes_small_payload():
@@ -45,6 +46,38 @@ def test_encode_media_with_openai_client_builds_openai_provider():
     )
 
     assert block == {"type": "input_image", "file_id": "file-1"}
+
+
+def test_encode_media_warns_and_keeps_original_client_on_mismatched_reuse(caplog):
+    client_a = MagicMock()
+    client_b = MagicMock()
+
+    block_a = encode_media(
+        client=client_a,
+        provider_name="anthropic",
+        source=b"tiny",
+        mime_type="text/plain",
+    )
+
+    with caplog.at_level(logging.WARNING, logger="siphon"):
+        block_b = encode_media(
+            client=client_b,
+            provider_name="anthropic",
+            source=b"tiny",
+            mime_type="text/plain",
+        )
+
+    assert block_a == block_b  # both inline-encoded; content is identical
+    warnings = [
+        record
+        for record in caplog.records
+        if record.name == "siphon" and record.levelno == logging.WARNING
+    ]
+    assert any("different client" in record.message.lower() for record in warnings)
+
+    # The provider registered for "anthropic" must still be bound to client_a.
+    provider = get_provider("anthropic")
+    assert provider._client is client_a
 
 
 def test_siphon_package_exports_expected_names():

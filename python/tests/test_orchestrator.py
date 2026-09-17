@@ -4,7 +4,7 @@ import pytest
 
 from siphon.cache import UploadCache
 from siphon.hashing import hash_chunks
-from siphon.orchestrator import encode_media_sync
+from siphon.orchestrator import encode_media_async, encode_media_sync
 from siphon.providers import ProviderRef
 from siphon.sources import from_bytes, from_iterator
 
@@ -153,6 +153,43 @@ def test_non_seekable_upload_failure_reraises_even_with_fallback_allowed():
         )
 
 
+class _TinyInlineLimitProvider(_RecordingProvider):
+    """A provider whose inline_size_limit is smaller than the size_threshold used in
+    the test, so a source can be routed onto the inline path (size < size_threshold)
+    while still exceeding what this provider can actually accept inline."""
+
+    def inline_size_limit(self) -> int:
+        return 100
+
+
+def test_inline_path_raises_when_source_exceeds_providers_inline_size_limit():
+    provider = _TinyInlineLimitProvider()
+    cache = UploadCache()
+    # Below size_threshold (so it's forced onto the inline path) but above the
+    # provider's own inline_size_limit of 100 bytes.
+    source = from_bytes(b"x" * 500, mime_type="image/png")
+
+    with pytest.raises(ValueError, match="inline_size_limit"):
+        encode_media_sync(provider, "fake", source, cache, size_threshold=1000)
+
+    assert provider.upload_calls == 0
+
+
+async def test_async_inline_path_raises_when_source_exceeds_providers_inline_size_limit():
+    class _AsyncTinyInlineLimitProvider(_AsyncRecordingProvider):
+        def inline_size_limit(self) -> int:
+            return 100
+
+    provider = _AsyncTinyInlineLimitProvider()
+    cache = UploadCache()
+    source = from_bytes(b"x" * 500, mime_type="image/png")
+
+    with pytest.raises(ValueError, match="inline_size_limit"):
+        await encode_media_async(provider, "fake", source, cache, size_threshold=1000)
+
+    assert provider.upload_calls == 0
+
+
 def test_non_seekable_unsupported_media_type_raises_value_error():
     provider = _RecordingProvider(supports=False)
     cache = UploadCache()
@@ -165,9 +202,6 @@ def test_non_seekable_unsupported_media_type_raises_value_error():
 
 
 # Async tests
-from siphon.orchestrator import encode_media_async
-
-
 class _AsyncRecordingProvider(_RecordingProvider):
     async def upload_async(self, chunks, mime_type: str) -> ProviderRef:
         self.upload_calls += 1
