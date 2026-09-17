@@ -3,6 +3,9 @@ name = "siphon"
 version = "0.1.0"
 description = "Stream binary media to multimodal LLM APIs without Base64."
 requires-python = ">=3.10"
+authors = [
+    { name = "Dr. Linga Murthy Narlagiri", email = "lingamraju26@gmail.com" },
+]
 license = "LicenseRef-PolyForm-Shield-1.0.0"
 license-files = ["LICENSE.md"]
 dependencies = [

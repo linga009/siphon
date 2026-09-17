@@ -2,7 +2,7 @@
 
 <https://polyformproject.org/licenses/shield/1.0.0>
 
-Required Notice: Copyright linga009 (https://github.com/linga009/siphon)
+Required Notice: Copyright Dr. Linga Murthy Narlagiri (lingamraju26@gmail.com)
 
 ## Acceptance
 

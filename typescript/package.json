@@ -2,6 +2,7 @@
   "name": "siphon",
   "version": "0.1.0",
   "description": "Stream binary media to multimodal LLM APIs without Base64.",
+  "author": "Dr. Linga Murthy Narlagiri <lingamraju26@gmail.com>",
   "license": "SEE LICENSE IN LICENSE.md",
   "type": "module",
   "main": "./dist/index.js",
