@@ -1,5 +1,8 @@
 # Siphon
 
+[![CI (Python)](https://github.com/linga009/siphon/actions/workflows/ci-python.yml/badge.svg)](https://github.com/linga009/siphon/actions/workflows/ci-python.yml)
+[![CI (TypeScript)](https://github.com/linga009/siphon/actions/workflows/ci-typescript.yml/badge.svg)](https://github.com/linga009/siphon/actions/workflows/ci-typescript.yml)
+
 **Stop Base64-encoding media into JSON. Stream it instead.**
 
 Siphon is a client library — implemented independently in **Python** and
@@ -121,6 +124,24 @@ inline-fallback path and custom providers are fully streaming).
 the client and the server (a self-hosted model, or your own gateway in
 front of a hosted API) — is a deliberately separate, not-yet-started
 follow-up; it isn't part of this repository yet.
+
+## CI/CD
+
+Each package has its own GitHub Actions workflows, triggered independently
+so a change to one package doesn't run the other's pipeline:
+
+- **CI** ([`ci-python.yml`](.github/workflows/ci-python.yml),
+  [`ci-typescript.yml`](.github/workflows/ci-typescript.yml)) — runs on every
+  push and pull request that touches the corresponding package. Python is
+  tested on 3.10/3.11/3.12; TypeScript is typechecked (both `src` and `test`)
+  and tested on Node 18/20/22, then built.
+- **Publish** ([`publish-python.yml`](.github/workflows/publish-python.yml),
+  [`publish-typescript.yml`](.github/workflows/publish-typescript.yml)) —
+  runs the full test suite again, then publishes to PyPI / npm, triggered by
+  pushing a tag: `python-v0.1.0` or `typescript-v0.1.0`. Requires repo
+  secrets `PYPI_API_TOKEN` and `NPM_TOKEN` (Settings → Secrets and
+  variables → Actions) before the first tagged release — neither package
+  has been published yet, so these aren't configured out of the box.
 
 ## License
 
