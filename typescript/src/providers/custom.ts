@@ -57,8 +57,8 @@ export class GenericHTTPUploadProvider implements Provider {
     if (!response.ok) {
       throw new Error(`Upload to ${this.uploadUrl} failed with status ${response.status}`);
     }
-    const data = (await response.json()) as { id: string; expiresAt?: number };
-    return { id: data.id, expiresAt: data.expiresAt ?? null };
+    const data = (await response.json()) as { id: string; expires_at?: number };
+    return { id: data.id, expiresAt: data.expires_at ?? null };
   }
 
   buildReferenceBlock(ref: ProviderRef, mimeType: string): Record<string, unknown> {
@@ -66,6 +66,6 @@ export class GenericHTTPUploadProvider implements Provider {
   }
 
   buildInlineBlock(base64Data: string, mimeType: string): Record<string, unknown> {
-    return { type: "inline_base64", mimeType, data: base64Data };
+    return { type: "inline_base64", mime_type: mimeType, data: base64Data };
   }
 }

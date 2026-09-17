@@ -43,6 +43,41 @@ describe("encodeMedia", () => {
     expect(block).toEqual({ type: "input_image", file_id: "file-1" });
   });
 
+  it("warns and keeps the original client when a different client is passed for an already-registered builtin provider", async () => {
+    // Uses "anthropic" (not "openai", which an earlier test in this file already
+    // auto-registers) so this test observes a clean first auto-registration.
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const clientA = {
+      beta: { files: { upload: vi.fn().mockResolvedValue({ id: "file-a" }) } },
+    } as any;
+    const clientB = {
+      beta: { files: { upload: vi.fn().mockResolvedValue({ id: "file-b" }) } },
+    } as any;
+
+    const blockA = await encodeMedia(clientA, "anthropic", Buffer.alloc(500_000, "x"), {
+      mimeType: "image/png",
+      sizeThreshold: 1000,
+    });
+    expect(blockA).toEqual({ type: "image", source: { type: "file", file_id: "file-a" } });
+    expect(warnSpy).not.toHaveBeenCalled();
+
+    // Different content than blockA's, so this can't be served from the upload cache and
+    // must genuinely go through whichever adapter is bound to the "anthropic" registration.
+    const blockB = await encodeMedia(clientB, "anthropic", Buffer.alloc(500_000, "y"), {
+      mimeType: "image/png",
+      sizeThreshold: 1000,
+    });
+
+    // Still served by clientA's adapter, not silently swapped to clientB.
+    expect(blockB).toEqual({ type: "image", source: { type: "file", file_id: "file-a" } });
+    expect(clientA.beta.files.upload).toHaveBeenCalledTimes(2);
+    expect(clientB.beta.files.upload).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalled();
+
+    warnSpy.mockRestore();
+  });
+
   it("re-exports the expected public names from index.ts", () => {
     expect(typeof siphon.encodeMedia).toBe("function");
     expect(typeof siphon.registerProvider).toBe("function");

@@ -29,8 +29,7 @@ process reuse the cached reference instead of re-uploading.
 
 ## Custom providers
 
-    import { registerProvider, encodeMedia } from "siphon";
-    import { GenericHTTPUploadProvider } from "siphon/dist/providers/custom.js";
+    import { registerProvider, encodeMedia, GenericHTTPUploadProvider } from "siphon";
 
     registerProvider("my-server", new GenericHTTPUploadProvider("https://my-server/upload"));
     const block = await encodeMedia(null, "my-server", "clip.mp4");

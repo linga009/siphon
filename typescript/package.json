@@ -8,7 +8,8 @@
   "engines": { "node": ">=18" },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "typecheck:test": "tsc -p tsconfig.test.json"
   },
   "peerDependencies": {
     "openai": ">=4.60.0",

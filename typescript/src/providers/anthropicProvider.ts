@@ -21,10 +21,10 @@ export class AnthropicProvider implements Provider {
     for await (const chunk of chunks) parts.push(chunk);
     const data = Buffer.concat(parts);
 
-    const file = await (this.client as any).beta.files.upload(
-      { file: new Blob([data], { type: mimeType }) },
-      { betas: BETA_HEADER }
-    );
+    const file = await this.client.beta.files.upload({
+      file: new Blob([data], { type: mimeType }),
+      betas: BETA_HEADER,
+    });
 
     return { id: file.id, expiresAt: null };
   }

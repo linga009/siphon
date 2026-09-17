@@ -45,7 +45,7 @@ describe("GenericHTTPUploadProvider", () => {
       capturedBody = init.body;
       return {
         ok: true,
-        json: async () => ({ id: "custom-ref-1", expiresAt: 999 }),
+        json: async () => ({ id: "custom-ref-1", expires_at: 999 }),
       };
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -90,7 +90,7 @@ describe("GenericHTTPUploadProvider", () => {
     });
     expect(provider.buildInlineBlock("AAAA", "image/png")).toEqual({
       type: "inline_base64",
-      mimeType: "image/png",
+      mime_type: "image/png",
       data: "AAAA",
     });
   });

@@ -31,8 +31,8 @@ describe("AnthropicProvider", () => {
 
     expect(ref).toEqual({ id: "file_011xyz", expiresAt: null });
     expect(client.beta.files.upload).toHaveBeenCalledTimes(1);
-    const options = client.beta.files.upload.mock.calls[0][1];
-    expect(options.betas).toEqual(["files-api-2025-04-14"]);
+    const params = client.beta.files.upload.mock.calls[0][0];
+    expect(params.betas).toEqual(["files-api-2025-04-14"]);
   });
 
   it("builds an image reference block", () => {

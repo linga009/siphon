@@ -9,14 +9,18 @@ class RecordingProvider implements Provider {
   uploadCalls = 0;
   uploadedBytes = Buffer.alloc(0);
 
-  constructor(private supports = true, private raiseOnUpload = false) {}
+  constructor(
+    private supports = true,
+    private raiseOnUpload = false,
+    private inlineLimit = 10_000_000
+  ) {}
 
   supportsMediaType(): boolean {
     return this.supports;
   }
 
   inlineSizeLimit(): number {
-    return 10_000_000;
+    return this.inlineLimit;
   }
 
   async upload(chunks: AsyncIterable<Buffer>, mimeType: string): Promise<ProviderRef> {
@@ -84,6 +88,20 @@ describe("encodeMediaCore", () => {
 
     expect(block1).toEqual(block2);
     expect(provider.uploadCalls).toBe(1);
+  });
+
+  it("throws when the size-threshold-triggered inline path would exceed the provider's inline size limit", async () => {
+    // supports the media type (so the size-threshold branch, not the unsupported-type
+    // branch, is what decides to go inline) but declares a tiny inline size limit.
+    const provider = new RecordingProvider(true, false, 100);
+    const cache = new UploadCache();
+    const source = fromBuffer(Buffer.alloc(500, "x"), "image/png");
+
+    // sizeThreshold is larger than the content, so this is forced onto the inline path.
+    await expect(encodeMediaCore(provider, "fake", source, cache, 1000)).rejects.toThrow(
+      /inline size limit/
+    );
+    expect(provider.uploadCalls).toBe(0);
   });
 
   it("goes inline for an unsupported media type even if large", async () => {

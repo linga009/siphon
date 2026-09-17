@@ -1,7 +1,7 @@
 import { encodeChunksToBase64 } from "./base64Stream.js";
 import { UploadCache } from "./cache.js";
 import { TeeHasher, hashChunks } from "./hashing.js";
-import type { Provider } from "./providers/types.js";
+import type { Provider, ProviderRef } from "./providers/types.js";
 import type { MediaSource } from "./sources.js";
 
 export const DEFAULT_SIZE_THRESHOLD = 262144;
@@ -32,16 +32,21 @@ export async function encodeMediaCore(
       return provider.buildReferenceBlock(cached, source.mimeType);
     }
 
-    const shouldGoInline =
-      !supportsType || (source.size !== null && source.size < sizeThreshold);
+    const sizeTriggered = source.size !== null && source.size < sizeThreshold;
+    const shouldGoInline = !supportsType || sizeTriggered;
     if (shouldGoInline) {
+      if (supportsType && sizeTriggered && source.size! > provider.inlineSizeLimit()) {
+        throw new Error(
+          `Cannot inline-encode ${source.size} bytes for provider "${providerName}": ` +
+            `exceeds its inline size limit of ${provider.inlineSizeLimit()} bytes.`
+        );
+      }
       return inlineBlock(provider, source.chunks(), source.mimeType);
     }
 
+    let ref: ProviderRef;
     try {
-      const ref = await provider.upload(source.chunks(), source.mimeType);
-      cache.put(providerName, contentHash, ref);
-      return provider.buildReferenceBlock(ref, source.mimeType);
+      ref = await provider.upload(source.chunks(), source.mimeType);
     } catch (err) {
       if (!allowInlineFallback) throw err;
       console.warn(
@@ -51,6 +56,8 @@ export async function encodeMediaCore(
       );
       return inlineBlock(provider, source.chunks(), source.mimeType);
     }
+    cache.put(providerName, contentHash, ref);
+    return provider.buildReferenceBlock(ref, source.mimeType);
   }
 
   if (!supportsType) {

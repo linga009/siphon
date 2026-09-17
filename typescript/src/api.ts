@@ -7,14 +7,25 @@ const defaultCache = new UploadCache();
 
 const BUILTIN_PROVIDER_NAMES = new Set(["openai", "anthropic", "gemini"]);
 
+const autoRegisteredClients = new Map<string, unknown>();
+
 async function ensureBuiltinProviderRegistered(providerName: string, client: unknown): Promise<void> {
   if (!BUILTIN_PROVIDER_NAMES.has(providerName)) return;
   try {
     getProvider(providerName);
+    if (autoRegisteredClients.has(providerName) && autoRegisteredClients.get(providerName) !== client) {
+      console.warn(
+        `[siphon] a different client instance was passed for already-registered provider ` +
+          `"${providerName}"; the original client is still in use. Call registerProvider() ` +
+          `explicitly if you need to switch clients.`
+      );
+    }
     return;
   } catch {
     // not registered yet, fall through
   }
+
+  autoRegisteredClients.set(providerName, client);
 
   if (providerName === "openai") {
     const { OpenAIProvider } = await import("./providers/openaiProvider.js");
