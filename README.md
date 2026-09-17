@@ -120,15 +120,15 @@ buffer the full payload in-process before upload — the SDK calls they wrap
 require a complete buffer, not an arbitrary stream — while the
 inline-fallback path and custom providers are fully streaming).
 
-**Live-tested against Anthropic:** the Python package's `AnthropicProvider`
-has been verified end-to-end against the real Claude API — a real image was
-streamed through `encode_media(..., "anthropic", ...)` to Anthropic's Files
-API, returned a genuine `file_id`, and a follow-up `client.beta.messages.create`
-call referencing that file got a correct vision response back. This is the
-only provider verified against a live API so far (everything else is
-covered by mocked unit tests only, including the OpenAI and Gemini
-adapters); see [Issues](https://github.com/linga009/siphon/issues) or open
-one if you hit a live-API mismatch elsewhere.
+**Live-tested against Anthropic and Gemini:** the Python package's
+`AnthropicProvider` and `GeminiProvider` have both been verified end-to-end
+against their real APIs — a real image was streamed via
+`encode_media(..., "anthropic"|"gemini", ...)` to the provider's Files API,
+returned a genuine file reference, and a follow-up real inference call
+using that reference got a correct vision response back. `OpenAIProvider`
+is covered by mocked unit tests only so far — not yet verified live; see
+[Issues](https://github.com/linga009/siphon/issues) or open one if you hit
+a live-API mismatch.
 
 **Stage 2** — a new binary wire protocol for cases where you control both
 the client and the server (a self-hosted model, or your own gateway in
