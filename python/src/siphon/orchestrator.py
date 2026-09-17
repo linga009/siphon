@@ -41,10 +41,11 @@ def encode_media_sync(
             return _inline_block(provider, source.chunks(), source.mime_type)
 
         if source.size is not None and source.size < size_threshold:
-            if source.size > provider.inline_size_limit():
+            limit = provider.inline_size_limit()
+            if limit > 0 and source.size > limit:
                 raise ValueError(
                     f"Source size ({source.size} bytes) exceeds {provider_name!r}'s "
-                    f"inline_size_limit ({provider.inline_size_limit()} bytes), but it is "
+                    f"inline_size_limit ({limit} bytes), but it is "
                     f"below size_threshold ({size_threshold} bytes) so native upload was "
                     "not attempted. Lower size_threshold to at or below the provider's "
                     "inline_size_limit so oversized sources use native upload instead."
@@ -109,10 +110,11 @@ async def encode_media_async(
             return _inline_block(provider, source.chunks(), source.mime_type)
 
         if source.size is not None and source.size < size_threshold:
-            if source.size > provider.inline_size_limit():
+            limit = provider.inline_size_limit()
+            if limit > 0 and source.size > limit:
                 raise ValueError(
                     f"Source size ({source.size} bytes) exceeds {provider_name!r}'s "
-                    f"inline_size_limit ({provider.inline_size_limit()} bytes), but it is "
+                    f"inline_size_limit ({limit} bytes), but it is "
                     f"below size_threshold ({size_threshold} bytes) so native upload was "
                     "not attempted. Lower size_threshold to at or below the provider's "
                     "inline_size_limit so oversized sources use native upload instead."

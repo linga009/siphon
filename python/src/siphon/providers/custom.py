@@ -58,7 +58,13 @@ class GenericHTTPUploadProvider:
         return True
 
     def inline_size_limit(self) -> int:
-        return 0  # no fixed inline convention for an arbitrary custom endpoint
+        # Sentinel: 0 (or any non-positive value) means "no declared inline size
+        # limit" for this provider, since an arbitrary custom HTTP endpoint has no
+        # fixed inline convention to report. This is NOT "zero bytes allowed" --
+        # the orchestrator treats any inline_size_limit() <= 0 as "unbounded" and
+        # skips the inline-size check entirely. Providers with a genuine inline
+        # size cap should return a positive byte count instead.
+        return 0
 
     def upload(self, chunks: Iterator[bytes], mime_type: str) -> ProviderRef:
         boundary = f"SiphonBoundary{secrets.token_hex(16)}"

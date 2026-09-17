@@ -16,7 +16,16 @@ class ProviderRef:
 class Provider(Protocol):
     def supports_media_type(self, mime_type: str) -> bool: ...
 
-    def inline_size_limit(self) -> int: ...
+    def inline_size_limit(self) -> int:
+        """Maximum source size in bytes this provider accepts on the inline
+        base64 path. Return a positive integer for a genuine cap; the
+        orchestrator raises ValueError if a source routed onto the inline
+        path exceeds it. Return 0 (or any non-positive value) if the
+        provider has no fixed inline size convention to declare -- this is
+        treated as "no declared limit", NOT as "zero bytes allowed", and the
+        orchestrator skips the inline-size check entirely in that case.
+        """
+        ...
 
     def upload(self, chunks: Iterator[bytes], mime_type: str) -> ProviderRef: ...
 

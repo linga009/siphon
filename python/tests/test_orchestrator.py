@@ -175,6 +175,45 @@ def test_inline_path_raises_when_source_exceeds_providers_inline_size_limit():
     assert provider.upload_calls == 0
 
 
+class _ZeroInlineLimitProvider(_RecordingProvider):
+    """A provider that returns 0 from inline_size_limit() as the documented
+    sentinel for "no fixed inline convention declared" (e.g. GenericHTTPUploadProvider
+    for an arbitrary custom endpoint). 0 must NOT be treated as "zero bytes
+    allowed" -- small sources should still inline successfully without raising."""
+
+    def inline_size_limit(self) -> int:
+        return 0
+
+
+def test_inline_path_with_zero_inline_size_limit_is_treated_as_no_limit():
+    provider = _ZeroInlineLimitProvider()
+    cache = UploadCache()
+    # Below size_threshold, so it's routed onto the inline path. Previously this
+    # raised ValueError because 0 was compared literally instead of being treated
+    # as "no declared limit".
+    source = from_bytes(b"tiny", mime_type="image/png")
+
+    block = encode_media_sync(provider, "fake", source, cache, size_threshold=1000)
+
+    assert block["type"] == "inline"
+    assert provider.upload_calls == 0
+
+
+async def test_async_inline_path_with_zero_inline_size_limit_is_treated_as_no_limit():
+    class _AsyncZeroInlineLimitProvider(_AsyncRecordingProvider):
+        def inline_size_limit(self) -> int:
+            return 0
+
+    provider = _AsyncZeroInlineLimitProvider()
+    cache = UploadCache()
+    source = from_bytes(b"tiny", mime_type="image/png")
+
+    block = await encode_media_async(provider, "fake", source, cache, size_threshold=1000)
+
+    assert block["type"] == "inline"
+    assert provider.upload_calls == 0
+
+
 async def test_async_inline_path_raises_when_source_exceeds_providers_inline_size_limit():
     class _AsyncTinyInlineLimitProvider(_AsyncRecordingProvider):
         def inline_size_limit(self) -> int:
