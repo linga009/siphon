@@ -35,7 +35,7 @@ function toWebReadableStream(chunks: AsyncIterable<Buffer>): ReadableStream<Uint
 export class GenericHTTPUploadProvider implements Provider {
   constructor(private uploadUrl: string, private fieldName: string = "file") {}
 
-  supportsMediaType(): boolean {
+  supportsMediaType(mimeType: string): boolean {
     return true;
   }
 
@@ -61,7 +61,7 @@ export class GenericHTTPUploadProvider implements Provider {
     return { id: data.id, expiresAt: data.expiresAt ?? null };
   }
 
-  buildReferenceBlock(ref: ProviderRef): Record<string, unknown> {
+  buildReferenceBlock(ref: ProviderRef, mimeType: string): Record<string, unknown> {
     return { type: "file_reference", id: ref.id };
   }
 
