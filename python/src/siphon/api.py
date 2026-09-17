@@ -5,7 +5,11 @@ from __future__ import annotations
 from pathlib import Path
 
 from siphon.cache import UploadCache
-from siphon.orchestrator import DEFAULT_SIZE_THRESHOLD, encode_media_sync
+from siphon.orchestrator import (
+    DEFAULT_SIZE_THRESHOLD,
+    encode_media_async as _encode_media_async_impl,
+    encode_media_sync,
+)
 from siphon.providers import Provider, get_provider, register_provider
 from siphon.sources import MediaSource, from_bytes, from_iterator, from_path
 
@@ -85,8 +89,6 @@ async def encode_media_async(
     allow_inline_fallback: bool = True,
     cache: UploadCache | None = None,
 ) -> dict:
-    from siphon.orchestrator import encode_media_async as _encode_media_async_impl
-
     _ensure_builtin_provider_registered(provider_name, client)
     provider = get_provider(provider_name)
     media_source = _resolve_source(source, mime_type)

@@ -162,3 +162,53 @@ def test_non_seekable_unsupported_media_type_raises_value_error():
 
     with pytest.raises(ValueError):
         encode_media_sync(provider, "fake", source, cache, size_threshold=1000)
+
+
+# Async tests
+from siphon.orchestrator import encode_media_async
+
+
+class _AsyncRecordingProvider(_RecordingProvider):
+    async def upload_async(self, chunks, mime_type: str) -> ProviderRef:
+        self.upload_calls += 1
+        if hasattr(chunks, "__anext__"):
+            data = b"".join([c async for c in chunks])
+        else:
+            data = b"".join(chunks)
+        self.uploaded_bytes += data
+        if self.raise_on_upload:
+            raise RuntimeError("upload failed")
+        return ProviderRef(id=f"ref-{self.upload_calls}", expires_at=None)
+
+
+async def test_async_large_seekable_source_uploads_and_caches():
+    provider = _AsyncRecordingProvider()
+    cache = UploadCache()
+    content = b"x" * 2000
+    source = from_bytes(content, mime_type="image/png")
+
+    block = await encode_media_async(provider, "fake", source, cache, size_threshold=1000)
+
+    assert block == {"type": "ref", "id": "ref-1"}
+    assert provider.upload_calls == 1
+
+
+async def test_async_small_source_goes_inline():
+    provider = _AsyncRecordingProvider()
+    cache = UploadCache()
+    source = from_bytes(b"tiny", mime_type="image/png")
+
+    block = await encode_media_async(provider, "fake", source, cache, size_threshold=1000)
+
+    assert block["type"] == "inline"
+    assert provider.upload_calls == 0
+
+
+async def test_async_upload_failure_falls_back_to_inline():
+    provider = _AsyncRecordingProvider(raise_on_upload=True)
+    cache = UploadCache()
+    source = from_bytes(b"x" * 5000, mime_type="image/png")
+
+    block = await encode_media_async(provider, "fake", source, cache, size_threshold=1000)
+
+    assert block["type"] == "inline"

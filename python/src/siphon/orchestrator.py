@@ -79,3 +79,59 @@ def encode_media_sync(
     ref = provider.upload(_tee(), source.mime_type)
     cache.put(provider_name, hasher.hexdigest(), ref)
     return provider.build_reference_block(ref, source.mime_type)
+
+
+async def encode_media_async(
+    provider: Provider,
+    provider_name: str,
+    source: MediaSource,
+    cache: UploadCache,
+    size_threshold: int = DEFAULT_SIZE_THRESHOLD,
+    allow_inline_fallback: bool = True,
+) -> dict:
+    supports_type = provider.supports_media_type(source.mime_type)
+
+    if source.seekable:
+        content_hash = hash_chunks(source.chunks())
+        cached = cache.get(provider_name, content_hash)
+        if cached is not None:
+            return provider.build_reference_block(cached, source.mime_type)
+
+        should_go_inline = not supports_type or (
+            source.size is not None and source.size < size_threshold
+        )
+        if should_go_inline:
+            return _inline_block(provider, source.chunks(), source.mime_type)
+
+        try:
+            ref = await provider.upload_async(source.chunks(), source.mime_type)
+        except Exception:
+            if not allow_inline_fallback:
+                raise
+            logger.warning(
+                "siphon: native upload to %r failed; falling back to inline base64 "
+                "(this reintroduces the size/memory overhead Siphon avoids).",
+                provider_name,
+                exc_info=True,
+            )
+            return _inline_block(provider, source.chunks(), source.mime_type)
+
+        cache.put(provider_name, content_hash, ref)
+        return provider.build_reference_block(ref, source.mime_type)
+
+    if not supports_type:
+        raise ValueError(
+            f"{provider_name!r} does not support media type {source.mime_type!r} "
+            "and the source is non-seekable, so no inline fallback is possible."
+        )
+
+    hasher = TeeHasher()
+
+    def _tee() -> Iterator[bytes]:
+        for chunk in source.chunks():
+            hasher.update(chunk)
+            yield chunk
+
+    ref = await provider.upload_async(_tee(), source.mime_type)
+    cache.put(provider_name, hasher.hexdigest(), ref)
+    return provider.build_reference_block(ref, source.mime_type)
