@@ -27,6 +27,15 @@ larger files are streamed to the provider's native file-upload API and
 referenced by ID. Repeated uploads of identical content within the same
 process reuse the cached reference instead of re-uploading.
 
+**Live-tested against Anthropic.** `AnthropicProvider` has been verified
+end-to-end against the real Claude API: `encode_media(client, "anthropic",
+image_path, size_threshold=0)` streamed a real image to Anthropic's Files
+API, got back a genuine `file_id`, and a follow-up
+`client.beta.messages.create(betas=["files-api-2025-04-14"], ...)` call
+referencing that file returned a correct vision response. The OpenAI and
+Gemini adapters are covered by mocked unit tests only so far — not yet
+verified against their live APIs.
+
 ## Custom providers
 
     from siphon import register_provider
