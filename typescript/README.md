@@ -48,3 +48,8 @@ process reuse the cached reference instead of re-uploading.
 - This package targets Node.js. Browser support (using `File`/`Blob`
   sources instead of `fs`-backed paths) would reuse the same `Provider`
   interface but needs its own `MediaSource` constructors — not built here.
+
+## License
+
+[PolyForm Shield License 1.0.0](LICENSE.md) — free for any use except
+providing a competing product or service.

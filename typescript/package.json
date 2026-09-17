@@ -2,6 +2,7 @@
   "name": "siphon",
   "version": "0.1.0",
   "description": "Stream binary media to multimodal LLM APIs without Base64.",
+  "license": "SEE LICENSE IN LICENSE.md",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

@@ -49,3 +49,8 @@ process reuse the cached reference instead of re-uploading.
   correctness.
 - The upload cache is in-memory and per-process; it does not persist across
   restarts and is not shared across multiple processes.
+
+## License
+
+[PolyForm Shield License 1.0.0](LICENSE.md) — free for any use except
+providing a competing product or service.

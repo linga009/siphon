@@ -145,4 +145,7 @@ so a change to one package doesn't run the other's pipeline:
 
 ## License
 
-TBD.
+[PolyForm Shield License 1.0.0](LICENSE.md) — free to use, modify, and
+distribute for any purpose *except* providing a product or service that
+competes with Siphon itself. If your use case falls under that exception,
+reach out about a commercial license.
