@@ -1,0 +1,28 @@
+{
+  "name": "siphon",
+  "version": "0.1.0",
+  "description": "Stream binary media to multimodal LLM APIs without Base64.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "peerDependencies": {
+    "openai": ">=4.60.0",
+    "@anthropic-ai/sdk": ">=0.30.0",
+    "@google/genai": ">=0.3.0"
+  },
+  "peerDependenciesMeta": {
+    "openai": { "optional": true },
+    "@anthropic-ai/sdk": { "optional": true },
+    "@google/genai": { "optional": true }
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "vitest": "^2.0.0",
+    "@types/node": "^22.0.0"
+  }
+}
