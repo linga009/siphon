@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { UploadCache } from "../src/cache.js";
+import { hashChunks } from "../src/hashing.js";
 import { encodeMediaCore } from "../src/orchestrator.js";
 import type { Provider, ProviderRef } from "../src/providers/types.js";
 import { fromAsyncIterable, fromBuffer } from "../src/sources.js";
@@ -113,11 +114,27 @@ describe("encodeMediaCore", () => {
     const provider = new RecordingProvider(true, true);
     const cache = new UploadCache();
     const source = fromBuffer(Buffer.alloc(5000, "x"), "image/png");
-    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     await expect(encodeMediaCore(provider, "fake", source, cache, 1000, false)).rejects.toThrow(
       "upload failed"
     );
+    expect(warnSpy).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it("re-throws when a non-seekable source upload fails, even with fallback allowed", async () => {
+    const provider = new RecordingProvider(true, true);
+    const cache = new UploadCache();
+    const content = Buffer.alloc(5000, "z");
+    async function* gen() {
+      for (let i = 0; i < content.length; i += 100) yield content.subarray(i, i + 100);
+    }
+    const source = fromAsyncIterable(gen(), "image/png");
+
+    await expect(
+      encodeMediaCore(provider, "fake", source, cache, 1000, true)
+    ).rejects.toThrow("upload failed");
   });
 
   it("uploads a non-seekable source and populates the cache after success", async () => {
@@ -133,5 +150,12 @@ describe("encodeMediaCore", () => {
 
     expect(block).toEqual({ type: "ref", id: "ref-1" });
     expect(provider.uploadedBytes).toEqual(content);
+
+    const expectedHash = await hashChunks(
+      (async function* () {
+        for (let i = 0; i < content.length; i += 100) yield content.subarray(i, i + 100);
+      })()
+    );
+    expect(cache.get("fake", expectedHash)).not.toBeNull();
   });
 });

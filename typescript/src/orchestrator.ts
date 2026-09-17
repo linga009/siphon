@@ -43,12 +43,12 @@ export async function encodeMediaCore(
       cache.put(providerName, contentHash, ref);
       return provider.buildReferenceBlock(ref, source.mimeType);
     } catch (err) {
+      if (!allowInlineFallback) throw err;
       console.warn(
         `[siphon] native upload to "${providerName}" failed; falling back to inline base64 ` +
           `(this reintroduces the size/memory overhead Siphon avoids).`,
         err
       );
-      if (!allowInlineFallback) throw err;
       return inlineBlock(provider, source.chunks(), source.mimeType);
     }
   }
