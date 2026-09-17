@@ -3,6 +3,7 @@ import logging
 import pytest
 
 from siphon.cache import UploadCache
+from siphon.hashing import hash_chunks
 from siphon.orchestrator import encode_media_sync
 from siphon.providers import ProviderRef
 from siphon.sources import from_bytes, from_iterator
@@ -99,8 +100,15 @@ def test_upload_failure_falls_back_to_inline_with_warning(caplog):
         block = encode_media_sync(provider, "fake", source, cache, size_threshold=1000)
 
     assert block["type"] == "inline"
-    assert any("upload failed" in record.message.lower() or "fall" in record.message.lower()
-               for record in caplog.records)
+    matching_records = [
+        record
+        for record in caplog.records
+        if record.name == "siphon" and record.levelno == logging.WARNING
+    ]
+    assert any(
+        "upload failed" in record.message.lower() or "fall" in record.message.lower()
+        for record in matching_records
+    )
 
 
 def test_upload_failure_reraises_when_fallback_disabled():
@@ -118,10 +126,39 @@ def test_non_seekable_large_source_uploads_and_populates_cache_after_success():
     provider = _RecordingProvider()
     cache = UploadCache()
     content = b"z" * 5000
-    source = from_iterator(iter([content[i : i + 100] for i in range(0, len(content), 100)]),
-                            mime_type="image/png")
+    chunks = [content[i : i + 100] for i in range(0, len(content), 100)]
+    source = from_iterator(iter(chunks), mime_type="image/png")
 
     block = encode_media_sync(provider, "fake", source, cache, size_threshold=1000)
 
     assert block == {"type": "ref", "id": "ref-1"}
     assert provider.uploaded_bytes == content
+
+    expected_hash = hash_chunks(iter(chunks))
+    cached = cache.get("fake", expected_hash)
+    assert cached is not None
+    assert cached.id == "ref-1"
+
+
+def test_non_seekable_upload_failure_reraises_even_with_fallback_allowed():
+    provider = _RecordingProvider(raise_on_upload=True)
+    cache = UploadCache()
+    content = b"w" * 5000
+    chunks = [content[i : i + 100] for i in range(0, len(content), 100)]
+    source = from_iterator(iter(chunks), mime_type="image/png")
+
+    with pytest.raises(RuntimeError, match="upload failed"):
+        encode_media_sync(
+            provider, "fake", source, cache, size_threshold=1000, allow_inline_fallback=True
+        )
+
+
+def test_non_seekable_unsupported_media_type_raises_value_error():
+    provider = _RecordingProvider(supports=False)
+    cache = UploadCache()
+    content = b"v" * 5000
+    chunks = [content[i : i + 100] for i in range(0, len(content), 100)]
+    source = from_iterator(iter(chunks), mime_type="application/weird")
+
+    with pytest.raises(ValueError):
+        encode_media_sync(provider, "fake", source, cache, size_threshold=1000)

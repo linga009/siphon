@@ -8,7 +8,7 @@ from typing import Iterator
 from siphon.base64_stream import encode_chunks_to_base64
 from siphon.cache import UploadCache
 from siphon.hashing import TeeHasher, hash_chunks
-from siphon.providers import Provider, ProviderRef
+from siphon.providers import Provider
 from siphon.sources import MediaSource
 
 logger = logging.getLogger("siphon")
@@ -46,14 +46,14 @@ def encode_media_sync(
         try:
             ref = provider.upload(source.chunks(), source.mime_type)
         except Exception:
+            if not allow_inline_fallback:
+                raise
             logger.warning(
                 "siphon: native upload to %r failed; falling back to inline base64 "
                 "(this reintroduces the size/memory overhead Siphon avoids).",
                 provider_name,
                 exc_info=True,
             )
-            if not allow_inline_fallback:
-                raise
             return _inline_block(provider, source.chunks(), source.mime_type)
 
         cache.put(provider_name, content_hash, ref)
