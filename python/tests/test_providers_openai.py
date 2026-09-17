@@ -30,6 +30,9 @@ def test_upload_calls_files_create_and_returns_ref():
     client.files.create.assert_called_once()
     _, kwargs = client.files.create.call_args
     assert kwargs["purpose"] == "user_data"
+    # Verify that the _ChunkFile wrapping correctly joins chunks via .read()
+    file_obj = kwargs["file"]
+    assert file_obj.read() == b"helloworld"
 
 
 async def test_upload_async_calls_files_create_and_returns_ref():
@@ -41,6 +44,10 @@ async def test_upload_async_calls_files_create_and_returns_ref():
 
     assert ref.id == "file-async-1"
     client.files.create.assert_awaited_once()
+    # Verify that the _ChunkFile wrapping correctly joins chunks via .read()
+    _, kwargs = client.files.create.call_args
+    file_obj = kwargs["file"]
+    assert file_obj.read() == b"hello"
 
 
 def test_build_reference_block_for_image_uses_input_image_type():
