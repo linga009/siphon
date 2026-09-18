@@ -53,6 +53,32 @@ verified against the live API.
     register_provider("my-server", GenericHTTPUploadProvider("https://my-server/upload"))
     block = encode_media(None, "my-server", "clip.mp4")
 
+## Groq
+
+Groq has no native file-upload API for vision — images go inline as base64,
+in the same JSON shape OpenAI's older Chat Completions API uses. Because its
+capability profile differs from the three built-ins (inline-only, images
+only), `GroqProvider` isn't auto-registered — register it explicitly:
+
+    from groq import Groq
+    from siphon import encode_media, register_provider
+    from siphon.providers.groq_provider import GroqProvider
+
+    client = Groq()
+    register_provider("groq", GroqProvider(client))
+    block = encode_media(client, "groq", "photo.png")
+
+    response = client.chat.completions.create(
+        model="meta-llama/llama-4-scout-17b-16e-instruct",
+        messages=[{"role": "user", "content": ["Describe this image.", block]}],
+    )
+
+**Not yet fully live-verified.** The request shape was checked against the
+real Groq API — a well-formed request was accepted and rejected only for
+model capability (no vision model enabled on the test account), not for
+malformed structure — but a full vision round-trip (upload → correct
+description back) hasn't been confirmed the way Anthropic and Gemini have.
+
 ## Known limitations (v1)
 
 - The OpenAI and Anthropic adapters currently buffer the full payload

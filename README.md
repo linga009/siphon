@@ -130,6 +130,14 @@ is covered by mocked unit tests only so far — not yet verified live; see
 [Issues](https://github.com/linga009/siphon/issues) or open one if you hit
 a live-API mismatch.
 
+There's also an optional, explicitly-registered `GroqProvider` (Groq has no
+native file-upload API for vision — it's inline-base64-only, in the same
+JSON shape as OpenAI's older Chat Completions API). Its request shape was
+verified against the real Groq API (a well-formed request was accepted and
+rejected only for model capability, not structure), but a full vision
+round-trip hasn't been confirmed — that needs an account with a
+vision-capable model enabled.
+
 **Stage 2** — a new binary wire protocol for cases where you control both
 the client and the server (a self-hosted model, or your own gateway in
 front of a hosted API) — is a deliberately separate, not-yet-started
