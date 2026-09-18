@@ -3,3 +3,4 @@ export { UploadCache } from "./cache.js";
 export { getProvider, registerProvider, type Provider, type ProviderRef } from "./providers/types.js";
 export { fromAsyncIterable, fromBuffer, fromPath, type MediaSource } from "./sources.js";
 export { GenericHTTPUploadProvider, multipartChunks } from "./providers/custom.js";
+export { GroqProvider } from "./providers/groqProvider.js";
