@@ -15,6 +15,24 @@ async function inlineBlock(
   return provider.buildInlineBlock(base64Data, mimeType);
 }
 
+function raiseIfExceedsInlineSizeLimit(
+  provider: Provider,
+  providerName: string,
+  source: MediaSource,
+  sizeThreshold: number
+): void {
+  if (source.size === null) return;
+  const limit = provider.inlineSizeLimit();
+  if (limit > 0 && source.size > limit) {
+    throw new Error(
+      `Source size (${source.size} bytes) exceeds "${providerName}"'s inlineSizeLimit ` +
+        `(${limit} bytes), but it is below sizeThreshold (${sizeThreshold} bytes) so ` +
+        `native upload was not attempted. Lower sizeThreshold to at or below the ` +
+        `provider's inlineSizeLimit so oversized sources use native upload instead.`
+    );
+  }
+}
+
 export async function encodeMediaCore(
   provider: Provider,
   providerName: string,
@@ -36,15 +54,7 @@ export async function encodeMediaCore(
     const shouldGoInline = !supportsType || sizeTriggered;
     if (shouldGoInline) {
       if (supportsType && sizeTriggered) {
-        const limit = provider.inlineSizeLimit();
-        if (limit > 0 && source.size! > limit) {
-          throw new Error(
-            `Source size (${source.size} bytes) exceeds "${providerName}"'s inlineSizeLimit ` +
-              `(${limit} bytes), but it is below sizeThreshold (${sizeThreshold} bytes) so ` +
-              `native upload was not attempted. Lower sizeThreshold to at or below the ` +
-              `provider's inlineSizeLimit so oversized sources use native upload instead.`
-          );
-        }
+        raiseIfExceedsInlineSizeLimit(provider, providerName, source, sizeThreshold);
       }
       return inlineBlock(provider, source.chunks(), source.mimeType);
     }
@@ -54,6 +64,7 @@ export async function encodeMediaCore(
       ref = await provider.upload(source.chunks(), source.mimeType);
     } catch (err) {
       if (!allowInlineFallback) throw err;
+      raiseIfExceedsInlineSizeLimit(provider, providerName, source, sizeThreshold);
       console.warn(
         `[siphon] native upload to "${providerName}" failed; falling back to inline base64 ` +
           `(this reintroduces the size/memory overhead Siphon avoids).`,

@@ -145,6 +145,20 @@ describe("encodeMediaCore", () => {
     warnSpy.mockRestore();
   });
 
+  it("throws instead of falling back when the upload-failure fallback would exceed inline size limit", async () => {
+    const provider = new RecordingProvider(true, true, 100);
+    const cache = new UploadCache();
+    const source = fromBuffer(Buffer.alloc(500, "x"), "image/png");
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    await expect(encodeMediaCore(provider, "fake", source, cache, 100)).rejects.toThrow(
+      /inlineSizeLimit/
+    );
+    expect(provider.uploadCalls).toBe(1);
+    expect(warnSpy).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
   it("re-throws when upload fails and fallback is disabled", async () => {
     const provider = new RecordingProvider(true, true);
     const cache = new UploadCache();

@@ -229,6 +229,33 @@ async def test_async_inline_path_raises_when_source_exceeds_providers_inline_siz
     assert provider.upload_calls == 0
 
 
+class _TinyInlineLimitAlwaysFailsUploadProvider(_RecordingProvider):
+    """A provider whose upload always fails AND whose inline_size_limit is tiny --
+    proves the fallback-to-inline-on-upload-failure path also respects
+    inline_size_limit, not just the size-threshold-triggered inline path."""
+
+    def __init__(self):
+        super().__init__(raise_on_upload=True)
+
+    def inline_size_limit(self) -> int:
+        return 100
+
+
+def test_upload_failure_fallback_raises_when_source_exceeds_inline_size_limit():
+    provider = _TinyInlineLimitAlwaysFailsUploadProvider()
+    cache = UploadCache()
+    # Above size_threshold (forces the "try native upload" branch); upload fails
+    # and would normally fall back to inline -- but the source also exceeds
+    # inline_size_limit, so it must raise instead of silently sending an
+    # oversized inline payload.
+    source = from_bytes(b"x" * 500, mime_type="image/png")
+
+    with pytest.raises(ValueError, match="inline_size_limit"):
+        encode_media_sync(provider, "fake", source, cache, size_threshold=100)
+
+    assert provider.upload_calls == 1
+
+
 def test_non_seekable_unsupported_media_type_raises_value_error():
     provider = _RecordingProvider(supports=False)
     cache = UploadCache()
@@ -285,3 +312,21 @@ async def test_async_upload_failure_falls_back_to_inline():
     block = await encode_media_async(provider, "fake", source, cache, size_threshold=1000)
 
     assert block["type"] == "inline"
+
+
+async def test_async_upload_failure_fallback_raises_when_source_exceeds_inline_size_limit():
+    class _AsyncTinyInlineLimitAlwaysFailsUploadProvider(_AsyncRecordingProvider):
+        def __init__(self):
+            super().__init__(raise_on_upload=True)
+
+        def inline_size_limit(self) -> int:
+            return 100
+
+    provider = _AsyncTinyInlineLimitAlwaysFailsUploadProvider()
+    cache = UploadCache()
+    source = from_bytes(b"x" * 500, mime_type="image/png")
+
+    with pytest.raises(ValueError, match="inline_size_limit"):
+        await encode_media_async(provider, "fake", source, cache, size_threshold=100)
+
+    assert provider.upload_calls == 1

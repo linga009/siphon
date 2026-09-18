@@ -21,6 +21,22 @@ def _inline_block(provider: Provider, chunks: Iterator[bytes], mime_type: str) -
     return provider.build_inline_block(b64, mime_type)
 
 
+def _raise_if_exceeds_inline_size_limit(
+    provider: Provider, provider_name: str, source: MediaSource, size_threshold: int
+) -> None:
+    if source.size is None:
+        return
+    limit = provider.inline_size_limit()
+    if limit > 0 and source.size > limit:
+        raise ValueError(
+            f"Source size ({source.size} bytes) exceeds {provider_name!r}'s "
+            f"inline_size_limit ({limit} bytes), but it is "
+            f"below size_threshold ({size_threshold} bytes) so native upload was "
+            "not attempted. Lower size_threshold to at or below the provider's "
+            "inline_size_limit so oversized sources use native upload instead."
+        )
+
+
 def encode_media_sync(
     provider: Provider,
     provider_name: str,
@@ -41,15 +57,7 @@ def encode_media_sync(
             return _inline_block(provider, source.chunks(), source.mime_type)
 
         if source.size is not None and source.size < size_threshold:
-            limit = provider.inline_size_limit()
-            if limit > 0 and source.size > limit:
-                raise ValueError(
-                    f"Source size ({source.size} bytes) exceeds {provider_name!r}'s "
-                    f"inline_size_limit ({limit} bytes), but it is "
-                    f"below size_threshold ({size_threshold} bytes) so native upload was "
-                    "not attempted. Lower size_threshold to at or below the provider's "
-                    "inline_size_limit so oversized sources use native upload instead."
-                )
+            _raise_if_exceeds_inline_size_limit(provider, provider_name, source, size_threshold)
             return _inline_block(provider, source.chunks(), source.mime_type)
 
         try:
@@ -57,6 +65,7 @@ def encode_media_sync(
         except Exception:
             if not allow_inline_fallback:
                 raise
+            _raise_if_exceeds_inline_size_limit(provider, provider_name, source, size_threshold)
             logger.warning(
                 "siphon: native upload to %r failed; falling back to inline base64 "
                 "(this reintroduces the size/memory overhead Siphon avoids).",
@@ -110,15 +119,7 @@ async def encode_media_async(
             return _inline_block(provider, source.chunks(), source.mime_type)
 
         if source.size is not None and source.size < size_threshold:
-            limit = provider.inline_size_limit()
-            if limit > 0 and source.size > limit:
-                raise ValueError(
-                    f"Source size ({source.size} bytes) exceeds {provider_name!r}'s "
-                    f"inline_size_limit ({limit} bytes), but it is "
-                    f"below size_threshold ({size_threshold} bytes) so native upload was "
-                    "not attempted. Lower size_threshold to at or below the provider's "
-                    "inline_size_limit so oversized sources use native upload instead."
-                )
+            _raise_if_exceeds_inline_size_limit(provider, provider_name, source, size_threshold)
             return _inline_block(provider, source.chunks(), source.mime_type)
 
         try:
@@ -126,6 +127,7 @@ async def encode_media_async(
         except Exception:
             if not allow_inline_fallback:
                 raise
+            _raise_if_exceeds_inline_size_limit(provider, provider_name, source, size_threshold)
             logger.warning(
                 "siphon: native upload to %r failed; falling back to inline base64 "
                 "(this reintroduces the size/memory overhead Siphon avoids).",
