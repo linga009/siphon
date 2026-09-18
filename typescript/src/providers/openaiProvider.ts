@@ -1,5 +1,14 @@
+import { File as NodeBufferFile } from "node:buffer";
 import OpenAI, { toFile } from "openai";
 import type { Provider, ProviderRef } from "./types.js";
+
+// The openai SDK's toFile() helper requires a global File constructor.
+// Node made File a true global starting in v20; on Node 18 (our documented
+// minimum) it must be polyfilled from node:buffer. No-op on Node 20+, where
+// globalThis.File already exists.
+if (typeof (globalThis as { File?: unknown }).File === "undefined") {
+  (globalThis as { File?: unknown }).File = NodeBufferFile;
+}
 
 const SUPPORTED_PREFIXES = ["image/", "application/pdf", "text/"];
 const INLINE_SIZE_LIMIT = 20 * 1024 * 1024;
